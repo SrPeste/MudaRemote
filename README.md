@@ -1,6 +1,7 @@
+# Path notes
 ## Features:
 
-The bot now checks for` $daily`, `$dk`, and `$mk` availability after every claim reset by parsing the `$tu` response.
+The bot now checks for `$daily`, `$dk`, and `$mk` availability after every claim reset by parsing the `$tu` response.
 If `$daily` or `$dk` is available, the bot will automatically send the corresponding command.
 If `$mk` is available and kakera react is ready, the bot will send `$mk` and then claim kakera.
 If the user cannot react to kakera but `$dk` and `$mk` are available, the bot will use `$dk`, then `$mk`, and then claim kakera.
