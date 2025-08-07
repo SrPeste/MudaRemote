@@ -8,8 +8,8 @@ All checks support both English and Portuguese responses.
 
 More robust parsing of Mudae bot messages for cooldowns and availability.
 Improved logging for all automated actions.
-
-**edited and re-uploaded from misutesu-desu**
+**(I will check for gold IV soon)**
+# edited and re-uploaded from misutesu-desu
 
 [English](README.md) | [Türkçe](README.tr.md) | [Français](README.fr.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
 
