@@ -252,9 +252,58 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
             else:
                 break
 
+
         content_lower = tu_message_content.lower()
         claim_reset_proceed = False
         lang_log_suffix = ""
+
+
+        # --- $daily, $dk, $mk, and kakera react logic ---
+        daily_ready = False
+        dk_ready = False
+        mk_ready = False
+        kakera_react_ready = False
+        can_react = False
+        # $daily available: look for "$daily is available!" (EN) or "$daily está disponível!" (PT)
+        if re.search(r"\\$daily is available!", content_lower) or re.search(r"\\$daily está disponível!", content_lower):
+            daily_ready = True
+        # $dk available: look for "you can use $dk now!" (EN) or "$dk está disponível!" (PT)
+        if re.search(r"you can use \\$dk now!", content_lower) or re.search(r"\\$dk está disponível!", content_lower):
+            dk_ready = True
+        # $mk available: look for "$mk is available!" (EN) or "$mk está disponível!" (PT)
+        if re.search(r"\\$mk is available!", content_lower) or re.search(r"\\$mk está disponível!", content_lower):
+            mk_ready = True
+        # $mk cooldown: look for "next $mk in" (EN/PT)
+        # Kakera react: look for "you can react to kakera right now!" (EN) or "você pode reagir a kakera agora mesmo!" (PT)
+        if re.search(r"you can react to kakera right now!", content_lower) or re.search(r"você pode reagir a kakera agora mesmo!", content_lower):
+            kakera_react_ready = True
+            can_react = True
+        # If can't react: look for "you can't react to kakera for" (EN) or "você não pode reagir a kakera por" (PT)
+        if re.search(r"you can't react to kakera for", content_lower) or re.search(r"você não pode reagir a kakera por", content_lower):
+            kakera_react_ready = False
+            can_react = False
+
+        # $mk + kakera logic
+        if mk_ready:
+            if kakera_react_ready:
+                log_function(f"[{client.muda_name}] $mk and kakera react available! Sending $mk and will claim kakera.", preset_name, "KAKERA")
+                await channel.send(f"{client.mudae_prefix}mk"); await asyncio.sleep(1.0)
+                # After $mk, claim kakera (send a message to trigger on_message logic)
+                # Optionally, you could trigger a manual claim here if you want to automate it further
+            elif dk_ready:
+                log_function(f"[{client.muda_name}] Can't react, but $dk and $mk available! Sending $dk, then $mk, then will claim kakera.", preset_name, "KAKERA")
+                await channel.send(f"{client.mudae_prefix}dk"); await asyncio.sleep(1.0)
+                await channel.send(f"{client.mudae_prefix}mk"); await asyncio.sleep(1.0)
+                # After $mk, claim kakera
+
+        # $daily/$dk as before
+        if daily_ready or dk_ready:
+            if dk_ready:
+                log_function(f"[{client.muda_name}] $dk is available! Sending $dk command.", preset_name, "INFO")
+                await channel.send(f"{client.mudae_prefix}dk"); await asyncio.sleep(1.0)
+            if daily_ready:
+                log_function(f"[{client.muda_name}] $daily is available! Sending $daily command.", preset_name, "INFO")
+                await channel.send(f"{client.mudae_prefix}daily"); await asyncio.sleep(1.0)
 
         # Regex for both English and Portuguese claim statuses
         match_can_claim_en = re.search(r"you __can__ claim.*?next claim reset .*?\*\*(\d+h)?\s*(\d+)\*\* min\.?", content_lower)
