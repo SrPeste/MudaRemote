@@ -4,11 +4,8 @@ If `$daily` or `$dk` is available, the bot will automatically send the correspon
 If `$mk` is available and kakera react is ready, the bot will send `$mk` and then claim kakera.
 If the user cannot react to kakera but `$dk` and `$mk` are available, the bot will use `$dk`, then `$mk`, and then claim kakera.
 All checks support both English and Portuguese responses.
-## Improvements:
-
-More robust parsing of Mudae bot messages for cooldowns and availability.
-Improved logging for all automated actions.
 **(I will check for gold IV soon)**
+
 # edited and re-uploaded from misutesu-desu
 
 [English](README.md) | [Türkçe](README.tr.md) | [Français](README.fr.md) | [简体中文](README.zh-CN.md) | [日本語](README.ja.md) | [한국어](README.ko.md)
