@@ -216,94 +216,66 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
             log_function(f"[{client.muda_name}] Snipe-Only Mode active. No initial commands will be sent. No status checks performed. Listening for snipes...", preset_name, "INFO")
 
     async def check_status(client, channel, mudae_prefix):
-        """Checks the user's status ($tu) to determine claim and roll availability."""
+        """Checks the user's status ($tu) to determine claim and roll availability. Também usa MK e reage a kakera se possível."""
         log_function(f"[{client.muda_name}] Checking $tu (rolling enabled)...", client.preset_name, "CHECK")
         error_count = 0; max_retries = 5
         tu_message_content = None
 
         while True:
-            await channel.send(f"{mudae_prefix}tu"); await asyncio.sleep(2.5)
+            await channel.send(f"{mudae_prefix}tu")
+            await asyncio.sleep(2.5)
             tu_message_content = None
             async for msg in channel.history(limit=10):
                 if msg.author.id == TARGET_BOT_ID and msg.content:
                     content_lower = msg.content.lower()
-                    # Check for keywords in both English and Portuguese to identify the correct message
+                    # --- NOVA LÓGICA: Verifica MK e kakera react --- brazil karai kkkkkkkkk
+                    kakera_react_ready = re.search(
+                        r"you __can__ react to kakera right now!",
+                        msg.content,
+                        re.IGNORECASE
+                    )
+                    mk_match = re.search(r"\(\+\*\*(\d+)\*\* \$mk\)", msg.content)
+                    mk_count = int(mk_match.group(1)) if mk_match else 0
+
                     has_rolls_info_en = re.search(r"rolls?.*left", content_lower)
-                    has_rolls_info_pt = re.search(r"rolls?.*restantes", content_lower)
                     has_claim_info_en = re.search(r"you __can__ claim|can't claim for another", content_lower)
+                    has_rolls_info_pt = re.search(r"rolls?.*restantes", content_lower)
                     has_claim_info_pt = re.search(r"pode se casar agora mesmo!|falta um tempo antes que você possa se casar novamente", content_lower)
                     if (has_rolls_info_en and has_claim_info_en) or \
                        (has_rolls_info_pt and has_claim_info_pt):
                         tu_message_content = msg.content
-                        log_function(f"[{client.muda_name}] Found $tu response.", preset_name, "INFO")
+                        log_function(f"[{client.muda_name}] Found $tu response.", client.preset_name, "INFO")
+
+                        # Se pode reagir e tem MK :thumbsup: <-- retardado
+                        if kakera_react_ready and mk_count > 0:
+                            log_function(f"[{client.muda_name}] MK available: {mk_count}, Kakera react ready!", client.preset_name, "KAKERA")
+                            for _ in range(mk_count):
+                                await channel.send(f"{client.mudae_prefix}mk")
+                                await asyncio.sleep(2.5)
+                                # pega a última mensagem do Mudae para reagir (brasil ta foda man)
+                                async for mk_msg in channel.history(limit=5):
+                                    if mk_msg.author.id == TARGET_BOT_ID and mk_msg.embeds:
+                                        await claim_character(client, channel, mk_msg, is_kakera=True)
+                                        break
                         break
-            
+
             if not tu_message_content:
                 error_count += 1
-                log_function(f"[{client.muda_name}] Err $tu ({error_count}/{max_retries}): Response not found/identified.", preset_name, "ERROR")
+                log_function(f"[{client.muda_name}] Err $tu ({error_count}/{max_retries}): Response not found/identified.", client.preset_name, "ERROR")
                 if error_count >= max_retries:
-                    log_function(f"[{client.muda_name}] Max $tu retries. Wait 30m.", preset_name, "ERROR")
+                    log_function(f"[{client.muda_name}] Max $tu retries. Wait 30m.", client.preset_name, "ERROR")
                     await asyncio.sleep(1800)
                     error_count = 0
                 else:
-                    log_function(f"[{client.muda_name}] Retry $tu in 7s.", preset_name, "ERROR")
+                    log_function(f"[{client.muda_name}] Retry $tu in 7s.", client.preset_name, "ERROR")
                     await asyncio.sleep(7)
                 continue
             else:
                 break
 
-
         content_lower = tu_message_content.lower()
         claim_reset_proceed = False
         lang_log_suffix = ""
-
-
-        # --- $daily, $dk, $mk, and kakera react logic ---
-        daily_ready = False
-        dk_ready = False
-        mk_ready = False
-        kakera_react_ready = False
-        can_react = False
-        # $daily available: look for "$daily is available!" (EN) or "$daily está disponível!" (PT)
-        if re.search(r"\\$daily is available!", content_lower) or re.search(r"\\$daily está disponível!", content_lower):
-            daily_ready = True
-        # $dk available: look for "you can use $dk now!" (EN) or "$dk está disponível!" (PT)
-        if re.search(r"you can use \\$dk now!", content_lower) or re.search(r"\\$dk está disponível!", content_lower):
-            dk_ready = True
-        # $mk available: look for "$mk is available!" (EN) or "$mk está disponível!" (PT)
-        if re.search(r"\\$mk is available!", content_lower) or re.search(r"\\$mk está disponível!", content_lower):
-            mk_ready = True
-        # $mk cooldown: look for "next $mk in" (EN/PT)
-        # Kakera react: look for "you can react to kakera right now!" (EN) or "você pode reagir a kakera agora mesmo!" (PT)
-        if re.search(r"you can react to kakera right now!", content_lower) or re.search(r"você pode reagir a kakera agora mesmo!", content_lower):
-            kakera_react_ready = True
-            can_react = True
-        # If can't react: look for "you can't react to kakera for" (EN) or "você não pode reagir a kakera por" (PT)
-        if re.search(r"you can't react to kakera for", content_lower) or re.search(r"você não pode reagir a kakera por", content_lower):
-            kakera_react_ready = False
-            can_react = False
-
-        # $mk + kakera logic
-        if mk_ready:
-            if kakera_react_ready:
-                log_function(f"[{client.muda_name}] $mk and kakera react available! Sending $mk and will claim kakera.", preset_name, "KAKERA")
-                await channel.send(f"{client.mudae_prefix}mk"); await asyncio.sleep(1.0)
-                # After $mk, claim kakera (send a message to trigger on_message logic)
-                # Optionally, you could trigger a manual claim here if you want to automate it further
-            elif dk_ready:
-                log_function(f"[{client.muda_name}] Can't react, but $dk and $mk available! Sending $dk, then $mk, then will claim kakera.", preset_name, "KAKERA")
-                await channel.send(f"{client.mudae_prefix}dk"); await asyncio.sleep(1.0)
-                await channel.send(f"{client.mudae_prefix}mk"); await asyncio.sleep(1.0)
-                # After $mk, claim kakera
-
-        # $daily/$dk as before
-        if daily_ready or dk_ready:
-            if dk_ready:
-                log_function(f"[{client.muda_name}] $dk is available! Sending $dk command.", preset_name, "INFO")
-                await channel.send(f"{client.mudae_prefix}dk"); await asyncio.sleep(1.0)
-            if daily_ready:
-                log_function(f"[{client.muda_name}] $daily is available! Sending $daily command.", preset_name, "INFO")
-                await channel.send(f"{client.mudae_prefix}daily"); await asyncio.sleep(1.0)
 
         # Regex for both English and Portuguese claim statuses
         match_can_claim_en = re.search(r"you __can__ claim.*?next claim reset .*?\*\*(\d+h)?\s*(\d+)\*\* min\.?", content_lower)
@@ -319,22 +291,22 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
 
         if match_c:
             h_s = match_c.group(1); h = int(h_s[:-1]) if h_s else 0; m = int(match_c.group(2))
-            log_function(f"[{client.muda_name}] Claim: Yes. Reset: {h}h {m}m.{lang_log_suffix}", preset_name, "INFO")
+            log_function(f"[{client.muda_name}] Claim: Yes. Reset: {h}h {m}m.{lang_log_suffix}", client.preset_name, "INFO")
             if (h * 60 + m) * 60 <= 3600 and client.snipe_ignore_min_kakera_reset: client.current_min_kakera_for_roll_claim = 0
             else: client.current_min_kakera_for_roll_claim = client.min_kakera
             claim_reset_proceed = True
         elif match_c_wait:
             h_s = match_c_wait.group(1); h = int(h_s[:-1]) if h_s else 0; m = int(match_c_wait.group(2))
-            log_function(f"[{client.muda_name}] Claim: No. Reset: {h}h {m}m.{lang_log_suffix}", preset_name, "INFO")
+            log_function(f"[{client.muda_name}] Claim: No. Reset: {h}h {m}m.{lang_log_suffix}", client.preset_name, "INFO")
             client.current_min_kakera_for_roll_claim = client.min_kakera
             if client.key_mode:
-                log_function(f"[{client.muda_name}] KeyMode on. Check rolls.", preset_name, "INFO"); claim_reset_proceed = True
+                log_function(f"[{client.muda_name}] KeyMode on. Check rolls.", client.preset_name, "INFO"); claim_reset_proceed = True
             else:
-                log_function(f"[{client.muda_name}] Wait claim reset...", preset_name, "RESET")
-                await wait_for_reset((h * 60 + m), client.delay_seconds, log_function, preset_name)
+                log_function(f"[{client.muda_name}] Wait claim reset...", client.preset_name, "RESET")
+                await wait_for_reset((h * 60 + m), client.delay_seconds, log_function, client.preset_name)
                 await check_status(client, channel, mudae_prefix); return
         else:
-            log_function(f"[{client.muda_name}] Ambiguous/Unknown claim status in $tu. Assume No. Check rolls.", preset_name, "WARN")
+            log_function(f"[{client.muda_name}] Ambiguous/Unknown claim status in $tu. Assume No. Check rolls.", client.preset_name, "WARN")
             client.claim_right_available = False; client.current_min_kakera_for_roll_claim = client.min_kakera
             claim_reset_proceed = True
 
@@ -738,7 +710,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                     await asyncio.sleep(client.kakera_reaction_snipe_delay_value)
                     await claim_character(client, message.channel, message, is_kakera=True)
         
-        # --- During own rolls, automatically click kakera if conditions are met. ---
+        # --- Durante os próprios rolls, clica automaticamente em kakera se as condições forem atendidas. ---
         if client.rolling_enabled and client.enable_reactive_self_snipe and client.is_actively_rolling and process_further:
             desc = embed.description or ""; k_val=0
             match_k = re.search(r"\**(\d{1,3}(?:,\d{3})*|\d+)\**<:kakera:", desc)
