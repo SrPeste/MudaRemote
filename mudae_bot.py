@@ -207,7 +207,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
             try:
                 log_function(f"[{client.muda_name}] Initial commands (rolling enabled)...", preset_name, "INFO")
                 await channel.send(f"{client.mudae_prefix}limroul 1 1 1 1"); await asyncio.sleep(1.0)
-                await channel.send(f"{client.mudae_prefix}dk"); await asyncio.sleep(1.0)
+                await channel.send(f"{client.mudae_prefix}dk"); await asyncio.sleep(1.0) 
                 await channel.send(f"{client.mudae_prefix}daily"); await asyncio.sleep(1.0)
                 await check_status(client, channel, client.mudae_prefix)
             except discord.errors.Forbidden as e: log_function(f"[{client.muda_name}] Err: Forbidden in setup (rolling) {e}", preset_name, "ERROR"); await client.close()
@@ -228,7 +228,7 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
             async for msg in channel.history(limit=10):
                 if msg.author.id == TARGET_BOT_ID and msg.content:
                     content_lower = msg.content.lower()
-                    # --- NOVA LÓGICA: Verifica MK e kakera react --- brazil karai kkkkkkkkk
+                    # --- Verifica $MK e kakera react ---
                     kakera_react_ready = re.search(
                         r"you __can__ react to kakera right now!",
                         msg.content,
@@ -236,7 +236,8 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                     )
                     mk_match = re.search(r"\(\+\*\*(\d+)\*\* \$mk\)", msg.content)
                     mk_count = int(mk_match.group(1)) if mk_match else 0
-
+                    log_function(f"[{client.muda_name}] DEBUG: $MK status - $mk={mk_count}, kakera_react_ready={bool(kakera_react_ready)}", client.preset_name, "CHECK")
+                   
                     has_rolls_info_en = re.search(r"rolls?.*left", content_lower)
                     has_claim_info_en = re.search(r"you __can__ claim|can't claim for another", content_lower)
                     has_rolls_info_pt = re.search(r"rolls?.*restantes", content_lower)
@@ -246,7 +247,32 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                         tu_message_content = msg.content
                         log_function(f"[{client.muda_name}] Found $tu response.", client.preset_name, "INFO")
 
-                        # Se pode reagir e tem MK :thumbsup: <-- retardado
+                        
+                        match_can_daily_en = re.search(r"\$daily is available! \(can claim daily\)", msg.content.lower())
+                        match_cant_daily_en = re.search(r"next \$daily reset in \*\*(\d+h)?\s*(\d+)\*\* min\. \(cant claim daily\)", msg.content.lower())
+                        match_can_daily_pt = re.search(r"\$daily está disponível! \(pode resgatar daily\)", msg.content.lower())
+                        match_cant_daily_pt = re.search(r"próxima reinicialização do \$daily em \*\*(\d+h)?\s*(\d+)\*\* min\. \(não pode resgatar daily\)", msg.content.lower())
+                        
+                        log_function(f"[{client.muda_name}] DEBUG: Daily status - "f"can_daily={bool(match_can_daily_en or match_can_daily_pt) or bool(match_cant_daily_en or match_cant_daily_pt)}",client.preset_name, "CHECK")
+                                              
+                        if match_can_daily_en or match_can_daily_pt:
+                            log_function(f"[{client.muda_name}] $daily available! using now...", client.preset_name, "INFO")
+                            await channel.send(f"{client.mudae_prefix}daily")
+                            await asyncio.sleep(1.0)
+                        elif match_cant_daily_en or match_cant_daily_pt:
+                            if match_cant_daily_en:
+                                h_s = match_cant_daily_en.group(1); h = int(h_s[:-1]) if h_s else 0; m = int(match_cant_daily_en.group(2))
+                            else:
+                                h_s = match_cant_daily_pt.group(1); h = int(h_s[:-1]) if h_s else 0; m = int(match_cant_daily_pt.group(2))
+                                total_min = h * 60 + m
+                                log_function(f"[{client.muda_name}] $daily not available. Will try in {total_min} min.", client.preset_name, "INFO")
+                                async def wait_and_daily():
+                                    await asyncio.sleep(total_min * 60 + 2)
+                                    log_function(f"[{client.muda_name}] Trying $daily after reset...", client.preset_name, "INFO")
+                                    await channel.send(f"{client.mudae_prefix}daily")
+                                    await asyncio.sleep(1.0)
+                                asyncio.create_task(wait_and_daily())
+
                         if kakera_react_ready and mk_count > 0:
                             log_function(f"[{client.muda_name}] MK available: {mk_count}, Kakera react ready!", client.preset_name, "KAKERA")
                             for _ in range(mk_count):
