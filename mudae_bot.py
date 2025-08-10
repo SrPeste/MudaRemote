@@ -248,11 +248,12 @@ def run_bot(token, prefix, target_channel_id, roll_command, min_kakera, delay_se
                         log_function(f"[{client.muda_name}] Found $tu response.", client.preset_name, "INFO")
 
                         
-                        match_can_daily_en = re.search(r"\$daily is available! \(can claim daily\)", msg.content.lower())
-                        match_cant_daily_en = re.search(r"next \$daily reset in \*\*(\d+h)?\s*(\d+)\*\* min\. \(cant claim daily\)", msg.content.lower())
-                        match_can_daily_pt = re.search(r"\$daily está disponível! \(pode resgatar daily\)", msg.content.lower())
-                        match_cant_daily_pt = re.search(r"próxima reinicialização do \$daily em \*\*(\d+h)?\s*(\d+)\*\* min\. \(não pode resgatar daily\)", msg.content.lower())
                         
+                        match_can_daily_en = re.search(r"\$daily is available!?(\s*\(can claim daily\))?", msg.content.lower())
+                        match_cant_daily_en = re.search(r"next \$daily reset in \*\*(\d+h)?\s*(\d+)\*\* min\.?(\s*\(cant claim daily\))?", msg.content.lower())
+                        match_can_daily_pt = re.search(r"\$daily está disponível!?(\s*\(pode resgatar daily\))?", msg.content.lower())
+                        match_cant_daily_pt = re.search(r"próxima reinicialização do \$daily em \*\*(\d+h)?\s*(\d+)\*\* min\.?(\s*\(não pode resgatar daily\))?", msg.content.lower())
+                                       
                         log_function(f"[{client.muda_name}] DEBUG: Daily status - "f"can_daily={bool(match_can_daily_en or match_can_daily_pt) or bool(match_cant_daily_en or match_cant_daily_pt)}",client.preset_name, "CHECK")
                                               
                         if match_can_daily_en or match_can_daily_pt:
